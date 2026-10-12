@@ -202,3 +202,17 @@ scripts/  (CLI entry points)
   would be the next research step (still CPU-bounded).
 - Docs milestone 11: README done; remaining docs/ pages + CHANGELOG pending.
 - No committed git history yet (files untracked).
+
+
+## Phase 2 addendum (2026-10-12)
+
+- Tick download completed (84/84 months); dataset rebuilt: 53,799 H1 bars,
+  canonical splits restored (train 2018–2022, val 2023–2024, test 2025–2026).
+- Models retrained on complete data. Schema v2 (exits + experiments tables).
+- New: simulated exits, live_source interface, ExperimentController,
+  experiment CLI, daily/final report generator, 5 GitHub workflows,
+  dashboard Experiment section, docs/EXPERIMENT.md, CHANGELOG.
+- 122 tests green, ruff clean. Initial git commit 4b8a998 (+ follow-ups).
+- 7-day delayed_data_paper experiment `exp-20261012-110843-9792` RUNNING
+  (hybrid strategy, Yahoo hourly source, ends 2026-10-19T11:08Z).
+- Full report: docs/PHASE2_IMPLEMENTATION_REPORT.md
