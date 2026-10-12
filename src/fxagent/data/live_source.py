@@ -163,6 +163,9 @@ class YahooHourlySource:
         now = pd.Timestamp.now(tz="UTC")
         hour_end = frame["timestamp"].dt.floor("1h") + pd.Timedelta(hours=1)
         frame = frame.loc[hour_end <= now]
+        # Yahoo occasionally emits rows with null OHLC (halted/illiquid hours);
+        # completed bars must have full OHLC — drop, never impute.
+        frame = frame.dropna(subset=["open", "high", "low", "close"])
         frame = _validate_bars(frame, self.name)
         if since is not None:
             since_ts = pd.Timestamp(since)

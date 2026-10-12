@@ -194,6 +194,28 @@ class TestYahooSourceParsing:
         assert len(bars) == 2
         assert bars["timestamp"].max() < now.floor("1h")
 
+    def test_nan_rows_dropped_not_imputed(self, monkeypatch):
+        """SYNTHETIC API payload with a null-OHLC row: must be dropped."""
+        now = pd.Timestamp.now(tz="UTC")
+        ts = [
+            int((now.floor("1h") - pd.Timedelta(hours=2)).timestamp()),
+            int((now.floor("1h") - pd.Timedelta(hours=1)).timestamp()),
+        ]
+        result = {
+            "timestamp": ts,
+            "indicators": {"quote": [{
+                "open": [1.1, None],
+                "high": [1.11, None],
+                "low": [1.09, None],
+                "close": [1.105, None],
+            }]},
+        }
+        src = YahooHourlySource()
+        monkeypatch.setattr(src, "_get", lambda: result)
+        bars = src.fetch_completed_bars()
+        assert len(bars) == 1
+        assert not bars[["open", "high", "low", "close"]].isna().any().any()
+
     def test_source_failure_propagates(self, monkeypatch):
         """Retry/backoff lives inside _get; a failing _get must surface an error."""
         src = YahooHourlySource(retries=2, backoff_seconds=0.01)
