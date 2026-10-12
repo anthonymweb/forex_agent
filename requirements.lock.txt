@@ -1,0 +1,14 @@
+# Locked dependency set verified on Ubuntu 24.04 / Python 3.12.3 (2026-10-11).
+# torch is the CPU-only wheel from https://download.pytorch.org/whl/cpu
+numpy==2.5.4
+pandas==2.3.3
+scipy==1.18.1
+scikit-learn==1.9.1
+gymnasium==1.4.0
+stable-baselines3==2.9.0
+torch==2.14.1+cpu
+requests==2.34.2
+PyYAML==6.0.3
+joblib==1.6.0
+streamlit==1.65.0
+plotly==6.9.0

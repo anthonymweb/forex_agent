@@ -1,0 +1,39 @@
+# Environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+
+# Secrets
+.env
+*.pem
+*.key
+credentials*.json
+
+# Generated data / models / logs / reports
+data/raw/
+data/processed/
+models/**
+!models/.gitkeep
+logs/**
+!logs/.gitkeep
+reports/**
+!reports/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+*.zip
+*.joblib
+*.pkl
+*.csv
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local pre-migration backups (never commit)
+backup/

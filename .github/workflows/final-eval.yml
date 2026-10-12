@@ -1,0 +1,52 @@
+# Final experiment evaluation. MANUAL DISPATCH ONLY — a final report must
+# never be generated before seven wall-clock days have elapsed in
+# delayed_data_paper mode (the script itself warns if incomplete).
+name: final-eval
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: final-eval
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock.txt
+
+      - name: Final evaluation
+        run: |
+          mkdir -p data
+          if [ -f restored/fxagent.db ]; then
+            cp restored/fxagent.db data/fxagent.db
+            python scripts/daily_report.py --final | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Final evaluation" >> "$GITHUB_STEP_SUMMARY"
+            echo "No experiment DB attached. Generate locally:" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`python scripts/daily_report.py --final\`" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Upload final report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-report
+          path: reports/final_report_*
+          retention-days: 90

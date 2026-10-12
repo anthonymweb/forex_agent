@@ -1,0 +1,168 @@
+# =====================================================================
+# fxagent default configuration (NON-SECRET).
+# All monetary amounts are SIMULATED. No live trading is possible.
+# =====================================================================
+
+project:
+  name: forex-research-agent
+  seed: 42
+  base_currency: USD
+  paths:
+    raw_dir: data/raw/histdata
+    processed_dir: data/processed
+    models_dir: models
+    logs_dir: logs
+    reports_dir: reports
+    db_path: data/fxagent.db
+
+instrument:
+  symbol: EURUSD
+  source_timeframe: M1          # what HistData supplies
+  timeframe: H1                 # research timeframe
+  pip_size: 0.0001
+  point_size: 0.00001
+
+data:
+  source: histdata
+  # Month-by-month M1 download range (inclusive). 2018-01 .. present.
+  start_year_month: "2018-01"
+  end_year_month: "2026-10"
+  request_delay_seconds: 1.2     # politeness delay between HTTP calls
+  http_timeout_seconds: 120
+  # H1 bars per day expected (forex week: Sun 22:00 UTC -> Fri 22:00 UTC)
+  expected_bars_per_week: 120
+  max_gap_hours: 6               # gaps larger than this are flagged
+
+split:
+  # Chronological, non-overlapping. Never shuffle across boundaries.
+  # Canonical splits restored 2026-10-12 after full 2018-01..2024-12 tick
+  # download completed (84/84 months) and the dataset was rebuilt.
+  train_start: "2018-01-01"
+  train_end: "2022-12-31 23:59:59"
+  val_start: "2023-01-01"
+  val_end: "2024-12-31 23:59:59"
+  test_start: "2025-01-01"
+  test_end: "2026-10-10 23:59:59"
+
+costs:
+  # All costs are assumptions applied identically to every strategy.
+  spread_pips: 0.8               # EURUSD typical retail spread
+  slippage_pips: 0.2             # adverse slippage per fill
+  commission_per_million: 3.0    # USD per 1,000,000 base notional round-turn
+
+position:
+  default_units: 100000          # 1 standard lot of EURUSD base units
+  max_units: 300000
+
+features:
+  # All features at bar t use data up to close of t (causal).
+  return_lags: [1, 2, 3, 5, 8, 13]
+  vol_windows: [8, 24, 72, 168]
+  ma_windows: [8, 24, 72, 168]
+  range_windows: [8, 24, 72]
+  momentum_windows: [14, 24]
+  use_time_of_week: true
+
+labels:
+  horizon_bars: 4                # 4 H1 bars ahead
+  deadzone_pips: 0.5             # ignore moves smaller than this
+  # target: "direction" (binary) | "return" (regression)
+  target: direction
+
+supervised:
+  model_type: gradient_boosting  # gradient_boosting | random_forest | logistic
+  random_forest:
+    n_estimators: 300
+    max_depth: 6
+    min_samples_leaf: 50
+  gradient_boosting:
+    n_estimators: 250
+    max_depth: 3
+    learning_rate: 0.05
+    subsample: 0.8
+  logistic:
+    C: 0.5
+    max_iter: 2000
+  # Trade only when P(up) is outside [low, high] — a no-trade zone.
+  prob_low: 0.55
+  prob_high: 0.60
+  min_trades_per_year: 0         # 0 disables the guardrail metric
+
+rl:
+  env:
+    window: 24                   # observation lookback bars
+    episode_bars: 1008           # 6 weeks of H1 bars
+    max_position_units: 100000
+    cost_pips_per_flip: 1.0      # env-level cost used inside reward
+    reward_scale: 1.0
+    penalty_rollover_pips: 0.0
+  ppo:
+    total_timesteps: 200000
+    n_steps: 2048
+    batch_size: 256
+    n_epochs: 8
+    learning_rate: 0.0003
+    gamma: 0.99
+    ent_coef: 0.01
+    seed: 42
+    n_eval_episodes: 10
+
+hybrid:
+  # Documented, reproducible decision rules (see docs/MODEL_METHODOLOGY.md):
+  # 1. If RL action is FLAT            -> FLAT (RL veto).
+  # 2. Else if supervised P(up) >= high -> LONG
+  #    Else if P(up) <= low             -> SHORT
+  #    Else                             -> FLAT (supervised no-trade zone).
+  # 3. Both signals must agree on direction; disagreement -> FLAT.
+  # 4. Risk manager has final veto on every action.
+  require_direction_agreement: true
+  min_confidence: 0.0
+
+exits:
+  # Simulated protective exits (SIMULATED MONEY ONLY).
+  # 0 disables a rule. Applied before any new signal on the same bar;
+  # if both stop and target lie inside one bar, stop-loss fills first
+  # (worst case). Tune on TRAIN/VALIDATION only — never on the test period.
+  stop_loss_pips: 0.0       # e.g. 12.0 = 12-pip stop from entry
+  take_profit_pips: 0.0     # e.g. 24.0 = 1:2 reward-to-risk with 12-pip stop
+  max_hold_bars: 0          # e.g. 48 = time-stop after 48 H1 bars
+
+risk:
+  max_position_units: 300000
+  max_open_positions: 1
+  max_daily_loss_usd: 200.0
+  max_drawdown_pct: 10.0
+  max_spread_pips: 3.0
+  stale_data_bars: 3             # reject orders if data older than N bars
+  max_consecutive_errors: 5
+  emergency_stop_file: data/EMERGENCY_STOP
+  allow_new_orders_when_stopped: false
+
+paper_broker:
+  initial_balance_usd: 10000.0
+  mode: paper                    # paper ONLY. live is refused by guards.
+  fill_model: next_open          # next_open | close
+  reconciling_on_start: true
+
+runner:
+  mode: replay                   # replay (accelerated or real-time) | live_paper
+  step_seconds: 0.05             # wall-clock sleep between bars in replay
+  max_bars: 0                    # 0 = until data exhausted
+  duration_days: 7               # wall-clock duration for real-time mode
+  heartbeat_seconds: 30
+  daily_summary_hour_utc: 22
+  close_positions_at_end: true
+
+evaluation:
+  # Metric block used by backtest + report
+  risk_free_rate_annual: 0.0
+  periods_per_year: 252 * 24     # H1 bars; evaluated by code as 6048
+  baseline_strategies:
+    - always_flat
+    - always_long
+    - sma_cross
+
+dashboard:
+  port: 8501
+  address: 127.0.0.1
+  theme: light

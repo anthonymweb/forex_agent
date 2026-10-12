@@ -1,0 +1,49 @@
+# End-to-end pipeline check on SYNTHETIC fixtures (labelled as such).
+# Validates runner + broker + risk + exits + reporting inside CI without
+# touching real market data or network services.
+name: pipeline-check
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/fxagent/runner/**"
+      - "src/fxagent/execution/**"
+      - "src/fxagent/risk/**"
+      - "src/fxagent/reporting/**"
+      - "scripts/daily_report.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock.txt
+
+      - name: Synthetic experiment end-to-end
+        run: python scripts/ci/synthetic_e2e.py
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-e2e-reports
+          path: ci-artifacts/
+          retention-days: 7

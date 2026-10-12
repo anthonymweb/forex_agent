@@ -1,0 +1,66 @@
+# Daily report generation.
+#
+# PERSISTENCE HONESTY: GitHub runners are ephemeral — the experiment SQLite
+# DB lives on the local Ubuntu machine, not in this repository. Therefore:
+#   * This workflow generates a daily report ONLY when the DB is provided
+#     as a workflow artifact from a previous manual upload, or
+#   * You run the local command (see docs/EXPERIMENT.md):
+#       python scripts/daily_report.py
+# A systemd timer on the local machine is the primary daily-report path.
+name: daily-report
+
+on:
+  schedule:
+    - cron: "30 22 * * *"    # 22:30 UTC daily (after FX Friday close window)
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "UTC day YYYY-MM-DD (blank = today)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-report
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock.txt
+
+      - name: Generate daily report (requires DB artifact if present)
+        run: |
+          mkdir -p data
+          if [ -f restored/fxagent.db ]; then
+            cp restored/fxagent.db data/fxagent.db
+            python scripts/daily_report.py --day "${{ inputs.day }}" | tee "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Daily report" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No experiment database available in this ephemeral runner." >> "$GITHUB_STEP_SUMMARY"
+            echo "Run locally: \`python scripts/daily_report.py\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "Or attach an artifact with fxagent.db and re-run with workflow_dispatch." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload report if generated
+        if: hashFiles('reports/daily_report_*.md') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-report
+          path: reports/daily_report_*
+          retention-days: 30
