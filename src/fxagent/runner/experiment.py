@@ -483,7 +483,7 @@ class ExperimentController:
             )
             self._ckpt = ckpt
             broker = self._get_broker()
-            broker.init_balance()
+            broker.reset_balance()  # each experiment starts from a clean account
             conn = self._ensure_db()
             repo = Repository(conn)
             if repo.get_run(run_id) is None:

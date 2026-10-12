@@ -340,6 +340,11 @@ class PaperBroker:
             if row is None:
                 self._set_balance(conn, self.initial_balance)
 
+    def reset_balance(self) -> None:
+        """Force the simulated balance back to initial (new experiment/run)."""
+        with session(self.db_path) as conn:
+            self._set_balance(conn, self.initial_balance)
+
 
 def new_order_id(run_id: str) -> str:
     return f"{run_id}-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
