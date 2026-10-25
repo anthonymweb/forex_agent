@@ -29,8 +29,14 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python --version
+          pip --version
           python -m pip install --upgrade pip
           pip install -r requirements.lock.txt
+
+      - name: Verify PyTorch import
+        run: |
+          python -c "import torch; print(f'torch={torch.__version__}, cuda={torch.cuda.is_available()}')"
 
       - name: Ruff
         run: python -m ruff check src/ tests/ scripts/
